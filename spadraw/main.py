@@ -20,10 +20,14 @@ import matplotlib.pyplot as plt
 # !pip3 install opencv-python
 import cv2
 
-path = "/Users/wangtong/Desktop/zj"
+print(os.getcwd())
+print(os.path.abspath('expression_matrix.h5'))
 
-adata = read_10x_h5(path + "/151673/expression_matrix.h5")
-spatial = pd.read_csv(path + "/151673/positions.txt", sep=",", header=None, na_filter=False, index_col=0)
+outpath = "./spadraw/output/"
+input = "./spadraw/input/"
+
+adata = read_10x_h5(input + "expression_matrix.h5")
+spatial = pd.read_csv(input + "positions.txt", sep=",", header=None, na_filter=False, index_col=0)
 adata.obs["x1"] = spatial[1]
 adata.obs["x2"] = spatial[2]
 adata.obs["x3"] = spatial[3]
@@ -37,9 +41,9 @@ adata.obs["y_pixel"] = adata.obs["x5"]
 adata = adata[adata.obs["x1"] == 1]
 adata.var_names = [i.upper() for i in list(adata.var_names)]
 adata.var["genename"] = adata.var.index.astype("str")
-adata.write_h5ad("sample_data.h5ad")
+adata.write_h5ad(outpath + "sample_data.h5ad")
 
-img = cv2.imread(path + "/151673/histology.tif")
+img = cv2.imread(input + "histology.tif")
 img_new = img.copy()
 
 x_array = adata.obs["x_array"].tolist()
@@ -52,8 +56,7 @@ for i in range(len(x_pixel)):
     y = y_pixel[i]
     img_new[int(x - 20):int(x + 20), int(y - 20):int(y + 20), :] = 0
 
-# cv2.imwrite('./sample_results/151673_map.jpg', img_new)
-cv2.imwrite('151673_map.jpg', img_new)
+cv2.imwrite(outpath + '151673_map.jpg', img_new)
 
 s = 1
 b = 49
@@ -62,11 +65,11 @@ adj = spg.calculate_adj_matrix(x=x_pixel, y=y_pixel, x_pixel=x_pixel, y_pixel=y_
                                histology=True)
 # If histlogy image is not available, SpaGCN can calculate the adjacent matrix using the fnction below
 # adj=calculate_adj_matrix(x=x_pixel,y=y_pixel, histology=False)
-np.savetxt('adj.csv', adj, delimiter=',')
+np.savetxt(outpath + 'adj.csv', adj, delimiter=',')
 
 # 5.1
-adata = sc.read("sample_data.h5ad")
-adj = np.loadtxt('adj.csv', delimiter=',')
+adata = sc.read(outpath + "sample_data.h5ad")
+adj = np.loadtxt(outpath + 'adj.csv', delimiter=',')
 adata.var_names_make_unique()
 spg.prefilter_genes(adata, min_cells=3)  # avoiding all genes are zeros
 spg.prefilter_specialgenes(adata)
@@ -107,9 +110,9 @@ refined_pred = spg.refine(sample_id=adata.obs.index.tolist(), pred=adata.obs["pr
 adata.obs["refined_pred"] = refined_pred
 adata.obs["refined_pred"] = adata.obs["refined_pred"].astype('category')
 # Save results
-adata.write_h5ad("results.h5ad")
+adata.write_h5ad(outpath + "results.h5ad")
 
-adata = sc.read("results.h5ad")
+adata = sc.read(outpath + "results.h5ad")
 # Set colors used
 plot_color = ["#F56867", "#FEB915", "#C798EE", "#59BE86", "#7495D3", "#D1D1D1", "#6D1A9C", "#15821E", "#3A84E6",
               "#997273", "#787878", "#DB4C6C", "#9E7A7A", "#554236", "#AF5F3C", "#93796C", "#F9BD3F", "#DAB370",
@@ -122,7 +125,7 @@ ax = sc.pl.scatter(adata, alpha=1, x="y_pixel", y="x_pixel", color=domains, titl
                    show=False, size=100000 / adata.shape[0])
 ax.set_aspect('equal', 'box')
 ax.axes.invert_yaxis()
-plt.savefig("pred.png", dpi=600)
+plt.savefig(outpath + "pred.png", dpi=600)
 plt.close()
 
 # Plot refined spatial domains
@@ -133,5 +136,5 @@ ax = sc.pl.scatter(adata, alpha=1, x="y_pixel", y="x_pixel", color=domains, titl
                    show=False, size=100000 / adata.shape[0])
 ax.set_aspect('equal', 'box')
 ax.axes.invert_yaxis()
-plt.savefig(".refined_pred.png", dpi=600)
+plt.savefig(outpath + ".refined_pred.png", dpi=600)
 plt.close()
